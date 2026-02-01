@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database - Single Source of Truth
+  # Note: Uses external network to connect to existing containers
+  postgres:
+    image: postgres:15-alpine
+    container_name: iterateswarm-postgres
+    environment:
+      POSTGRES_USER: iterateswarm
+      POSTGRES_PASSWORD: iterateswarm
+      POSTGRES_DB: iterateswarm
+    ports:
+      - "5433:5432"  # Map to 5433 to avoid conflict
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iterateswarm -d iterateswarm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iterateswarm-net
+
+  # Qdrant Vector Database - Semantic Memory
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: iterateswarm-qdrant
+    ports:
+      - "6334:6333"  # Map to 6334 since 6333 is in use
+      - "6335:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6334/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - iterateswarm-net
+
+networks:
+  iterateswarm-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  qdrant_data:

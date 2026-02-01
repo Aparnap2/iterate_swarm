@@ -1,0 +1,81 @@
+// Prisma Schema for IterateSwarm
+// This is the Single Source of Truth for the application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================
+// Feedback Table
+// ========================
+// Stores raw feedback received from Discord/Slack/webhooks
+
+model FeedbackItem {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  source    String   // "discord", "slack", "manual"
+  status    String   @default("pending") // "pending", "processing", "completed", "ignored"
+  classification String? // "bug", "feature", "question"
+  severity  String? // "low", "medium", "high", "critical"
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+
+  // Relations
+  issue Issue?
+
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+}
+
+// ========================
+// Issues Table
+// ========================
+// Stores generated GitHub issues (drafts and published)
+
+model Issue {
+  id        String   @id @default(uuid())
+  feedbackId String  @unique
+  title     String   @db.VarChar(255)
+  body      String   @db.Text
+  status    String   @default("draft") // "draft", "approved", "rejected", "published"
+  githubUrl String?  @db.VarChar(500)
+
+  // Spec metadata
+  classification String? // "bug", "feature", "question"
+  severity      String? // "low", "medium", "high", "critical"
+  reproductionSteps String[] @default([])
+  affectedComponents String[] @default([])
+  acceptanceCriteria String[] @default([])
+  labels      String[] @default([])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  feedback FeedbackItem @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ========================
+// Audit Log Table (Optional)
+// ========================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entityType String
+  entityId  String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
