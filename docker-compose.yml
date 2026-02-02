@@ -1,48 +1,178 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database - Single Source of Truth
-  # Note: Uses external network to connect to existing containers
+  # ===========================================
+  # Temporal - Workflow Orchestration
+  # ===========================================
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: iterateswarm-temporal
+    environment:
+      - CASSANDRA_SEEDS=temporal
+      - DYNAMIC_CONFIG_FILE_PATH=/etc/temporal/config/dynamicconfig/development.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=elasticsearch
+      - LOG_LEVEL=info
+      - DB=postgres
+      - DB_PORT=5432
+      - POSTGRES_USER=iterateswarm
+      - POSTGRES_PWD=iterateswarm
+      - POSTGRES_SEEDS=postgres
+      - TEMPORAL_UI_PORT=8080
+    ports:
+      - "7233:7233"   # gRPC API
+      - "8080:8080"   # Temporal UI
+    depends_on:
+      - postgres
+      - elasticsearch
+    networks:
+      - iterateswarm-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:latest
+    container_name: iterateswarm-temporal-admin
+    depends_on:
+      - temporal
+    networks:
+      - iterateswarm-net
+    entrypoint: ["sleep", "infinity"]
+
+  # ===========================================
+  # Elasticsearch - Temporal backend storage
+  # ===========================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: iterateswarm-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - iterateswarm-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================
+  # Redpanda - Kafka-compatible event streaming
+  # ===========================================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.1
+    container_name: iterateswarm-redpanda
+    command:
+      - redpanda
+      - start
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,EXTERNAL://localhost:9094
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=redpanda:8082
+      - --schema-registry-addr=0.0.0.0:8081
+      - --rpc-addr=0.0.0.0:33145
+      - --advertise-rpc-addr=redpanda:33145
+      - --seed-ips=redpanda:33145
+    ports:
+      - "19092:9092"  # Kafka API (internal)
+      - "9094:9094"   # Kafka API (external - for local dev)
+      - "8081:8081"   # Schema Registry
+      - "8082:8082"   # REST Proxy
+      - "33145:33145" # RPC
+      - "9644:9644"   # Admin API
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    networks:
+      - iterateswarm-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9644/v1/status/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.3.1
+    container_name: iterateswarm-redpanda-console
+    entrypoint: /bin/sh
+    command: -c "echo '$$CONSOLE_CONFIG_FILE' > /tmp/config.yaml && /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yaml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers:
+            - redpanda:9092
+          schemaRegistry:
+            enabled: true
+            urls:
+              - http://redpanda:8081
+        redpanda:
+          adminApi:
+            enabled: true
+            urls:
+              - http://redpanda:9644
+    ports:
+      - "8080:8080"  # Redpanda Console
+    depends_on:
+      - redpanda
+    networks:
+      - iterateswarm-net
+
+  # ===========================================
+  # PostgreSQL - Database
+  # ===========================================
   postgres:
     image: postgres:15-alpine
     container_name: iterateswarm-postgres
     environment:
-      POSTGRES_USER: iterateswarm
-      POSTGRES_PASSWORD: iterateswarm
-      POSTGRES_DB: iterateswarm
+      - POSTGRES_USER=iterateswarm
+      - POSTGRES_PASSWORD=iterateswarm
+      - POSTGRES_DB=iterateswarm
     ports:
-      - "5433:5432"  # Map to 5433 to avoid conflict
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U iterateswarm -d iterateswarm"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - iterateswarm-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iterateswarm -d iterateswarm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Qdrant Vector Database - Semantic Memory
+  # ===========================================
+  # Qdrant - Vector Database
+  # ===========================================
   qdrant:
     image: qdrant/qdrant:latest
     container_name: iterateswarm-qdrant
     ports:
-      - "6334:6333"  # Map to 6334 since 6333 is in use
-      - "6335:6334"
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC
     volumes:
-      - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6334/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - qdrant-data:/var/lib/qdrant
     networks:
       - iterateswarm-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/collections"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  redpanda-data:
+    driver: local
+  postgres-data:
+    driver: local
+  qdrant-data:
+    driver: local
 
 networks:
   iterateswarm-net:
     driver: bridge
-
-volumes:
-  postgres_data:
-  qdrant_data:

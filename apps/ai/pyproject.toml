@@ -1,0 +1,54 @@
+[project]
+name = "iterateswarm-ai"
+version = "0.1.0"
+description = "AI Worker for IterateSwarm ChatOps - Temporal Activities"
+requires-python = ">=3.11"
+
+dependencies = [
+    # Temporal SDK
+    "temporalio>=1.11.0",
+
+    # LangChain & LangGraph (AI Agents)
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=1.0.0",
+
+    # OpenAI-compatible client (works with Ollama)
+    "openai>=1.0.0",
+
+    # Vector Database
+    "qdrant-client>=1.16.0",
+
+    # Data Validation
+    "pydantic>=2.0.0",
+
+    # HTTP Client
+    "httpx>=0.28.0",
+
+    # Structured Logging
+    "structlog>=25.0.0",
+
+    # Configuration
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+]
+
+[tool.pytest]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = ["-v"]
+
+[tool.pytest.env]
+# Enable running tests without Temporal connection
+TEMPORAL_ADDRESS = "localhost:7233"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

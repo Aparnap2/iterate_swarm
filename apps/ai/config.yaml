@@ -1,0 +1,32 @@
+# IterateSwarm AI Worker Configuration
+# =====================================
+
+# Temporal Server Connection
+temporal:
+  host: "localhost"
+  port: 7233
+  namespace: "default"
+  task_queue: "AI_TASK_QUEUE"
+
+# Ollama (OpenAI-compatible API)
+ollama:
+  base_url: "http://localhost:11434/v1"
+  api_key: "ollama"  # Dummy key for Ollama
+  model: "qwen2.5-coder:3b"
+  embedding_model: "nomic-embed-text"
+
+# Qdrant Vector Database
+qdrant:
+  url: "http://localhost:6333"
+  collection: "feedback_items"
+  similarity_threshold: 0.85
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+
+# Application
+app:
+  name: "iterateswarm-ai"
+  environment: "development"
