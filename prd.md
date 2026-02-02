@@ -1,239 +1,250 @@
-This is the **Master Plan** for **IterateSwarm**. This document serves as your Product Requirements Document (PRD), Technical Specification, and Implementation Guide.
+# IterateSwarm Master Plan (ChatOps Pivot)
+
+This is the **Master Plan** for **IterateSwarm** - A Polyglot ChatOps Platform.
 
 ***
 
 # **1. Product Requirements Document (PRD)**
 
 **Product Name:** IterateSwarm
-**One-Liner:** An event-driven autonomous agent swarm that turns unstructured user feedback into production-ready GitHub Issues.
-**Target Audience:** Technical Founders (Seed/Series A) drowning in Discord/Slack feedback.
+**One-Liner:** An event-driven autonomous agent swarm that turns unstructured user feedback into production-ready GitHub Issues via Discord/Slack.
+**Architecture:** ChatOps - No dashboard, just Discord interactions.
 
 ### **Core Features (MVP)**
-1.  **Universal Ingestion:** Webhooks for Discord, Slack, and manual entry.
-2.  **Semantic Deduplication:** Uses Vector Search to merge duplicate feedback items (e.g., "Login broken" and "Can't sign in" = 1 Issue).
-3.  **Agentic Triaging:** Autonomous classification (Bug/Feature/Noise) and severity scoring.
-4.  **Spec Generation:** A "Spec Writer" agent drafts a structured GitHub Issue (Title, Repro Steps, Components).
-5.  **Human-in-the-Loop (HITL):** A dashboard for founders to approve/reject agent drafts before they hit GitHub.
-6.  **Full Observability:** End-to-end tracing of the agent's "thought process."
+1.  **Universal Ingestion:** Webhooks for Discord/Slack.
+2.  **Semantic Deduplication:** Qdrant vector search to merge duplicate feedback.
+3.  **Agentic Triaging:** LangGraph agents classify (Bug/Feature/Question) and score severity.
+4.  **Spec Generation:** Agent drafts a structured GitHub Issue.
+5.  **Human-in-the-Loop (ChatOps):** Discord message with [Approve]/[Reject] buttons.
+6.  **Full Observability:** Temporal UI for workflow tracing.
 
 ***
 
-# **2. System Architecture (The "Free Tier" Production Stack)**
+# **2. System Architecture (Polyglot Temporal)**
 
 ### **The Tech Stack**
-| Component | Tech Choice | Hosting (Free Tier Strategy) |
-| :--- | :--- | :--- |
-| **Frontend** | Next.js 14 (App Router) | Vercel (Hobby) |
-| **Backend API** | FastAPI (Python) | Render (Free Web Service) |
-| **Event Bus** | **Upstash Kafka** | Upstash (Free - 10k daily msgs) |
-| **Orchestration** | **Inngest** | Vercel Integration (Free - 50k steps) |
-| **Agent Framework** | LangGraph | Runs inside FastAPI on Render |
-| **Vector DB** | Qdrant | Qdrant Cloud (1GB Free Cluster) |
-| **Primary DB** | Supabase (Postgres) | Supabase (500MB Free) |
-| **Observability** | Langfuse | Langfuse Cloud (Hobby Tier) |
-| **Validation** | DeepEval | Local / GitHub Actions |
+
+| Component | Tech Choice | Purpose |
+|-----------|-------------|---------|
+| **Ingestion API** | Go + Fiber | High-performance webhook receiver |
+| **Orchestration** | Temporal | Workflow state machine |
+| **AI Worker** | Python + LangGraph | LLM processing (Ollama/qwen2.5-coder) |
+| **Vector DB** | Qdrant | Semantic duplicate detection |
+| **Event Bus** | Redpanda | Kafka-compatible message buffer |
+| **Primary DB** | PostgreSQL | App data persistence |
+| **Interface** | Discord | ChatOps (Block Kit buttons) |
 
 ### **High-Level Data Flow**
+
 ```mermaid
-graph LR
-    Discord -->|Webhook| FastAPI
-    FastAPI -->|Producer| UpstashKafka[Kafka: feedback.raw]
-    UpstashKafka -->|Consumer| Inngest[Inngest Workflow]
-    
-    subgraph "Inngest Workflow Execution"
-        Inngest --> Step1[Dedup Agent (Qdrant)]
-        Step1 -->|If New| Step2[Triage Agent]
-        Step2 --> Step3[Spec Agent]
-        Step3 -->|Draft Saved| Supabase
+graph TD
+    subgraph "External"
+        User -->|Feedback| DiscordWebhook
+        Admin -->|Click Button| DiscordInteraction
     end
-    
-    Supabase -->|Realtime| NextJS[Dashboard]
-    User -->|Approve| NextJS
-    NextJS -->|API Call| GitHub[GitHub API]
+
+    subgraph "Go Core (apps/core)"
+        FiberAPI -->|Produce| Redpanda
+        InteractionHandler -->|Signal| Temporal
+        GoWorker -->|Activity| DiscordAPI
+        GoWorker -->|Activity| GitHubAPI
+    end
+
+    subgraph "Infrastructure"
+        Redpanda[Redpanda]
+        Temporal[Temporal Server]
+        PostgreSQL[(PostgreSQL)]
+        Qdrant[(Qdrant)]
+    end
+
+    subgraph "AI Worker (apps/ai)"
+        PyWorker[Temporal Worker]
+        PyWorker -->|Activity| LangGraph
+        LangGraph -->|Dedupe| Qdrant
+    end
+
+    DiscordWebhook --> FiberAPI
+    FiberAPI --> Redpanda
+    Redpanda --> GoWorker
+    GoWorker --> Temporal
+    Temporal --> PyWorker
+    PyWorker -->|Result| Temporal
+    Temporal -->|Signal| GoWorker
+    GoWorker --> DiscordAPI
+    DiscordInteraction --> InteractionHandler
 ```
+
+### **Polyglot Workflow Pattern**
+
+1.  **Workflow Definition (Go):** The "Manager" - defines steps, waits for signals.
+2.  **Activity A (Python):** The "Specialist" - AI processing (LangGraph agents).
+3.  **Activity B (Go):** The "Generalist" - Discord/GitHub API calls.
+
+**Task Queues:**
+- `AI_TASK_QUEUE`: Python worker for AI activities
+- `MAIN_TASK_QUEUE`: Go worker for API activities
 
 ***
 
-# **3. Data Models (Schema)**
+# **3. Data Models**
 
-**SQL (Supabase)**
+### **Workflow State (Temporal)**
+
+```python
+class FeedbackInput(TypedDict):
+    feedback_id: str
+    content: str
+    source: str  # discord, slack
+
+class IssueSpec(TypedDict):
+    title: str
+    classification: str  # bug, feature, question
+    severity: str  # low, medium, high, critical
+    reasoning: str
+    reproduction_steps: list[str]
+    affected_components: list[str]
+    acceptance_criteria: list[str]
+    suggested_labels: list[str]
+    confidence: float
+```
+
+### **PostgreSQL (App Data)**
+
 ```sql
--- Table: feedback_items (Raw Ingestion)
-CREATE TABLE feedback_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    source VARCHAR(50), -- 'discord', 'slack'
-    raw_content TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    status VARCHAR(20) -- 'pending', 'processed', 'ignored'
-);
-
--- Table: issues (The Agent's Output)
-CREATE TABLE issues (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    feedback_id UUID REFERENCES feedback_items(id),
-    title TEXT,
-    description TEXT, -- Markdown body
-    severity VARCHAR(20), -- 'low', 'medium', 'high', 'critical'
-    labels TEXT[], -- ['bug', 'frontend']
-    status VARCHAR(20), -- 'draft', 'approved', 'published'
-    github_issue_url TEXT
+CREATE TABLE feedback (
+    id UUID PRIMARY KEY,
+    content TEXT,
+    source VARCHAR(50),
+    status VARCHAR(20),  -- pending, approved, rejected
+    issue_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
-**Pydantic (Python / API)**
-```python
-# The structure the Agent MUST output
-class IssueSpec(BaseModel):
-    title: str = Field(description="Concise, technical title")
-    severity: Literal["low", "medium", "high", "critical"]
-    components: List[str]
-    reproduction_steps: List[str]
-    technical_notes: Optional[str]
+***
+
+# **4. Project Structure**
+
+```
+iterate_swarm/
+├── apps/
+│   ├── core/              # Go service
+│   │   ├── main.go        # Fiber HTTP server
+│   │   ├── workflow.go    # Temporal workflow definition
+│   │   ├── activities/    # Go activities (Discord, GitHub)
+│   │   └── consumer.go    # Redpanda consumer
+│   └── ai/                # Python service
+│       ├── src/
+│       │   ├── worker.py  # Temporal worker
+│       │   ├── agents/    # LangGraph agents
+│       │   ├── activities/# Temporal activities
+│       │   └── services/  # Qdrant, etc.
+│       └── tests/
+├── infra/                 # Docker configs
+├── docker-compose.yml     # Local dev stack
+├── config.yaml           # App configuration
+└── prd.md               # This document
 ```
 
 ***
 
-# **4. API Structure (FastAPI)**
+# **5. Development Phases**
 
-*   `POST /webhooks/discord`: Receives JSON from Discord -> Pushes to Kafka.
-*   `POST /inngest`: The entry point for the Inngest executor (triggers the agents).
-*   `GET /api/dashboard/stats`: Returns metrics for the frontend.
-*   `POST /api/issues/{id}/approve`: Triggered by HITL -> Calls GitHub API.
+## **Phase 1: Infrastructure (COMPLETED)**
+- [x] Docker Compose: Redpanda, Temporal, PostgreSQL, Qdrant
+- [x] Health check scripts
 
-***
+## **Phase 2: Go Core (NEXT)**
+- [ ] Fiber HTTP server for webhooks
+- [ ] Temporal workflow definition
+- [ ] Go activities (Discord, GitHub)
+- [ ] Redpanda consumer
 
-# **5. Code Snippets (The "Meat")**
+## **Phase 3: AI Worker (COMPLETED)**
+- [x] Python Temporal worker
+- [x] LangGraph triage agent
+- [x] LangGraph spec writer agent
+- [x] Qdrant vector service
+- [x] Test suite (17 tests passing)
 
-### **A. Ingestion (FastAPI + Kafka)**
-```python
-from fastapi import FastAPI, Request
-from upstash_kafka import Producer
+## **Phase 4: Integration**
+- [ ] Connect Go workflow to Python activities
+- [ ] Discord Block Kit integration
+- [ ] GitHub API integration
+- [ ] End-to-end test
 
-app = FastAPI()
-producer = Producer(url="...", username="...", password="...")
-
-@app.post("/webhooks/discord")
-async def receive_discord(request: Request):
-    payload = await request.json()
-    # 1. Validate (Pydantic)
-    data = DiscordSchema(**payload)
-    
-    # 2. Push to Kafka (Non-blocking)
-    producer.send("feedback.raw", value=data.model_dump_json())
-    
-    return {"status": "queued"} 
-```
-
-### **B. The Agent Workflow (Inngest + LangGraph)**
-```python
-import inngest
-
-@inngest.create_function(
-    fn_id="process-feedback",
-    trigger=inngest.TriggerEvent(event="feedback.received"),
-)
-async def process_feedback_flow(ctx, step):
-    feedback = ctx.event.data
-    
-    # Step 1: Deduplication (Deterministic)
-    is_duplicate = await step.run("check-qdrant", 
-        lambda: qdrant_client.search(collection="issues", vector=embed(feedback['text']))
-    )
-    
-    if is_duplicate:
-        return {"result": "merged"}
-
-    # Step 2: Agent Swarm (The "Thinking")
-    # We wrap LangGraph inside an Inngest step for retries/timeouts
-    spec = await step.run("generate-spec", 
-        lambda: triage_agent_swarm.invoke({"input": feedback['text']})
-    )
-
-    # Step 3: Save Draft
-    await step.run("save-db", 
-        lambda: supabase.table("issues").insert(spec)
-    )
-```
-
-### **C. The Agent (LangGraph + Langfuse)**
-```python
-from langfuse.decorators import observe
-
-@observe() # <--- This is the Magic Line for LLMOps
-def triage_node(state):
-    # Logic to classify bug vs feature
-    response = llm.invoke(triage_prompt.format(state['input']))
-    return {"classification": response}
-```
+## **Phase 5: Production**
+- [ ] Dockerfiles for both services
+- [ ] CI/CD pipeline
+- [ ] Deployment scripts
 
 ***
 
-# **6. Standard Operating Procedure (SOP) & Checklist**
+# **6. API Endpoints**
 
-**Phase 1: Infrastructure (Day 1)**
-- [ ] Create Upstash Kafka Cluster (Free).
-- [ ] Create Qdrant Cloud Cluster (Free).
-- [ ] Create Supabase Project.
-- [ ] Get OpenAI API Key.
-- [ ] Get Langfuse Keys.
+### **Go Core (Fiber)**
 
-**Phase 2: Backend Core (Day 2)**
-- [ ] `pip install fastapi uvicorn upstash-kafka inngest langchain-openai`.
-- [ ] Implement `POST /webhooks/discord`.
-- [ ] Implement `process_feedback_flow` in Inngest.
-- [ ] Dockerize the FastAPI app.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/webhooks/ingest` | Receive feedback -> Push to Redpanda |
+| POST | `/webhooks/interaction` | Discord button clicks -> Signal workflow |
+| GET | `/health` | Health check |
 
-**Phase 3: The Intelligence (Day 3)**
-- [ ] Write the Prompts (System Prompts for Triage/Spec Agents).
-- [ ] Implement `check_qdrant` logic.
-- [ ] Connect Langfuse.
+### **Temporal Workflow**
 
-**Phase 4: Frontend & Polish (Day 4)**
-- [ ] `npx create-next-app@latest`.
-- [ ] Install Shadcn/UI (Table, Dialog, Button).
-- [ ] Fetch data from Supabase (`supabase-js`).
-- [ ] Deploy to Vercel & Render.
+**Workflow:** `FeedbackLifecycle`
+
+1. Activity `AnalyzeFeedback` (Python) - AI processing
+2. Activity `SendApprovalRequest` (Go) - Discord buttons
+3. Signal `UserAction` - Wait for admin decision
+4. Activity `PublishToGitHub` (Go) - Create issue (if approved)
 
 ***
 
-# **7. Deliverables & Testing Strategy**
+# **7. Configuration**
 
-### **A. Unit Tests (Pytest)**
-*   Test that the Pydantic models reject invalid JSON.
-*   Test that the deduplication logic returns `True` for 100% identical strings.
+```yaml
+temporal:
+  host: "localhost"
+  port: 7233
+  task_queue: "AI_TASK_QUEUE"
 
-### **B. E2E Tests (Manual/Scripted)**
-1.  Send a message: "The login button is broken on mobile" to your Discord Mock webhook.
-2.  Check Upstash: Did a message appear in `feedback.raw`?
-3.  Check Inngest Dashboard: Did the function trigger?
-4.  Check Langfuse: Do you see the trace?
-5.  Check Supabase: Is there a new row in `issues` with status `draft`?
+ollama:
+  base_url: "http://localhost:11434/v1"
+  model: "qwen2.5-coder:3b"
+  embedding_model: "nomic-embed-text"
 
-### **C. LLM Evaluation (DeepEval)**
-Create a file `test_agents.py`:
-```python
-from deepeval import assert_test
-from deepeval.metrics import AnswerRelevancyMetric
+qdrant:
+  url: "http://localhost:6333"
+  collection: "feedback_items"
+  similarity_threshold: 0.85
 
-def test_triage_accuracy():
-    # Input
-    input_text = "The app crashes when I click upload."
-    
-    # Run Agent
-    output = triage_agent.invoke(input_text)
-    
-    # Metric: Did it catch the severity?
-    assert output['severity'] == 'high'
-    assert output['type'] == 'bug'
+discord:
+  bot_token: "${DISCORD_BOT_TOKEN}"
+  admin_channel_id: "${DISCORD_ADMIN_CHANNEL}"
+
+github:
+  token: "${GITHUB_TOKEN}"
+  owner: "${GITHUB_OWNER}"
+  repo: "${GITHUB_REPO}"
 ```
-*Run this in GitHub Actions on every push.*
 
 ***
 
-### **How to Handover**
-When you submit this project or show it in an interview, provide:
-1.  **The Live Demo Link** (Vercel URL).
-2.  **The Loom Video** (Walkthrough of the Inngest flow + Langfuse Trace).
-3.  **The GitHub Repo** (With a clean README showing the Architecture Diagram).
+# **8. Testing Strategy**
 
-This is a Senior Engineer's portfolio piece. Go build it.
+### **Unit Tests**
+- Python: pytest (17 tests passing)
+- Go: testing package
+
+### **Integration Tests**
+- Temporal worker connectivity
+- Qdrant duplicate detection
+- Full workflow execution
+
+### **E2E Tests**
+- Webhook -> Workflow -> Discord -> Approval -> GitHub
+
+***
+
+Last Updated: 2026-02-02

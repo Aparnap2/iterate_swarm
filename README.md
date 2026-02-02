@@ -2,15 +2,14 @@
 
 <div align="center">
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/iterateswarm/ci.yml?branch=main&style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)
 ![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js)
+![Temporal](https://img.shields.io/badge/Temporal-Orchestration-FF6B6B?style=flat-square)
 
-**AI-Powered Feedback Triage System for GitHub Issue Management**
+**Polyglot ChatOps Platform for AI-Powered Feedback Triage**
 
-An event-driven autonomous agent swarm that turns unstructured user feedback from Discord and Slack into production-ready GitHub Issues.
+Turn unstructured Discord/Slack feedback into GitHub Issues using a Polyglot Temporal architecture (Go + Python).
 
 [Features](#features) • [Architecture](#architecture) • [Tech Stack](#tech-stack) • [Setup Guide](#setup-guide) • [Progress](#progress-status)
 
@@ -20,120 +19,104 @@ An event-driven autonomous agent swarm that turns unstructured user feedback fro
 
 ## Overview
 
-IterateSwarm is a modern, production-grade system designed for technical founders and development teams who need to efficiently process user feedback from multiple channels. The system automatically:
+IterateSwarm is a production-grade Polyglot ChatOps platform:
 
-- Ingests feedback from Discord, Slack, and manual entry via webhooks
-- Uses semantic vector search to detect and merge duplicate feedback
-- Employs autonomous AI agents to classify, triage, and prioritize issues
-- Generates structured GitHub issue drafts with severity scores and reproduction steps
-- Provides a human-in-the-loop dashboard for review before publishing
+- **Go Core** - High-performance webhook ingestion and Discord/GitHub integration
+- **Python AI Worker** - LangGraph agents for classification and spec generation
+- **Temporal** - Fault-tolerant workflow orchestration spanning both languages
+- **ChatOps** - No dashboard, just Discord interactions with [Approve]/[Reject] buttons
 
 ---
 
 ## Features
 
-- **Universal Ingestion** - Webhook support for Discord, Slack, and manual feedback entry
-- **Semantic Deduplication** - Uses Qdrant vector similarity to merge duplicate feedback (e.g., "Login broken" and "Can't sign in" become one issue)
-- **Agentic Triaging** - Autonomous classification (Bug/Feature/Question) and severity scoring
-- **Spec Generation** - AI-powered structured GitHub Issue drafting with title, reproduction steps, and affected components
-- **Human-in-the-Loop (HITL)** - Dashboard for founders to approve/reject agent drafts before GitHub publication
-- **Full Observability** - End-to-end tracing of agent decision-making process via Langfuse
+- **Universal Ingestion** - Webhook support for Discord and Slack
+- **Semantic Deduplication** - Qdrant vector similarity to merge duplicate feedback
+- **Agentic Triaging** - LangGraph agents classify (Bug/Feature/Question) and score severity
+- **Spec Generation** - AI-powered structured GitHub Issue drafting
+- **ChatOps** - Discord Block Kit buttons for human-in-the-loop approval
+- **Full Observability** - Temporal UI for workflow tracing
 
 ---
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph "Feedback Sources"
-        Discord[Discord Webhook]
-        Slack[Slack Webhook]
-        Manual[Manual Entry]
+graph TD
+    subgraph "External"
+        User -->|Feedback| DiscordWebhook
+        Admin -->|Click Button| DiscordInteraction
     end
 
-    subgraph "Event Processing"
-        Webhooks[Next.js Webhooks]
-        Kafka[Kafka Event Bus]
+    subgraph "Go Core (apps/core)"
+        FiberAPI -->|Produce| Redpanda
+        InteractionHandler -->|Signal| Temporal
+        GoWorker -->|Activity| DiscordAPI
+        GoWorker -->|Activity| GitHubAPI
     end
 
-    subgraph "AI Processing Layer"
-        LangGraph[LangGraph Agent Swarm]
-        Qdrant[Qdrant Vector DB]
-        Inngest[Inngest Workflow]
-    end
-
-    subgraph "Data Layer"
+    subgraph "Infrastructure"
+        Redpanda[Redpanda]
+        Temporal[Temporal Server]
         PostgreSQL[(PostgreSQL)]
-        Prisma[Prisma ORM]
+        Qdrant[(Qdrant)]
     end
 
-    subgraph "Web Application"
-        NextJS[Next.js Dashboard]
-        Callbacks[API Callbacks]
+    subgraph "AI Worker (apps/ai)"
+        PyWorker[Temporal Worker]
+        PyWorker -->|Activity| LangGraph
+        LangGraph -->|Dedupe| Qdrant
     end
 
-    subgraph "Output"
-        GitHub[GitHub Issues]
-    end
-
-    Discord --> Webhooks
-    Slack --> Webhooks
-    Manual --> Webhooks
-
-    Webhooks --> Kafka
-    Kafka --> Inngest
-    Inngest --> LangGraph
-    LangGraph <--> Qdrant
-    LangGraph --> Prisma
-    Prisma --> PostgreSQL
-    Prisma --> NextJS
-    NextJS --> GitHub
-    LangGraph --> Callbacks
-    Callbacks --> NextJS
+    DiscordWebhook --> FiberAPI
+    FiberAPI --> Redpanda
+    Redpanda --> GoWorker
+    GoWorker --> Temporal
+    Temporal --> PyWorker
+    PyWorker -->|Result| Temporal
+    Temporal -->|Signal| GoWorker
+    GoWorker --> DiscordAPI
+    DiscordInteraction --> InteractionHandler
 ```
 
-### Data Flow
+### Polyglot Pattern
 
-1. **Ingestion** - User feedback arrives via Discord/Slack webhooks to Next.js API
-2. **Queueing** - Feedback is published to Kafka for reliable event processing
-3. **Orchestration** - Inngest triggers the agent workflow
-4. **AI Processing** - LangGraph agents analyze, deduplicate, and classify feedback
-5. **Storage** - Draft issues are persisted to PostgreSQL via Prisma
-6. **Review** - Dashboard displays drafts for human approval
-7. **Publishing** - Approved issues are created as GitHub issues
+| Component | Language | Task Queue | Responsibility |
+|-----------|----------|------------|----------------|
+| **Workflow Definition** | Go | - | Orchestration logic |
+| **AI Activity** | Python | AI_TASK_QUEUE | LangGraph agents |
+| **API Activity** | Go | MAIN_TASK_QUEUE | Discord, GitHub |
 
 ---
 
 ## Tech Stack
 
-### Frontend
+### Go Core
 
 | Technology | Purpose |
 |------------|---------|
-| [Next.js 16](https://nextjs.org) | React framework with App Router |
-| [React 19](https://react.dev) | UI library |
-| [Shadcn/UI](https://ui.shadcn.com) | Component library |
-| [Tailwind CSS](https://tailwindcss.com) | Utility-first CSS |
-| [Prisma ORM](https://prisma.io) | Database ORM |
+| Fiber | HTTP framework |
+| Temporal Go SDK | Workflow orchestration |
+| franz-go | Redpanda/Kafka client |
+| discord.go | Discord API |
 
-### Backend
+### Python AI Worker
 
 | Technology | Purpose |
 |------------|---------|
-| [FastAPI](https://fastapi.tiangolo.com) | Python web framework |
-| [Inngest](https://inngest.com) | Event-driven workflow orchestration |
-| [LangGraph](https://langchain-ai.github.io/langgraph) | Agent workflow orchestration |
-| [LangChain OpenAI](https://python.langchain.com) | LLM integration framework |
-| [Qdrant](https://qdrant.tech) | Vector similarity search |
+| Temporal Python SDK | Activity worker |
+| LangGraph | Agent orchestration |
+| OpenAI SDK | Ollama (OpenAI-compatible) |
+| Qdrant Client | Vector similarity search |
 
 ### Infrastructure
 
 | Technology | Purpose |
 |------------|---------|
-| [PostgreSQL](https://postgresql.org) | Primary relational database |
-| [Qdrant](https://qdrant.tech) | Vector similarity search |
-| [Apache Kafka](https://kafka.apache.org) | Event streaming platform |
-| [Docker](https://docker.com) | Container orchestration |
+| Temporal Server | Workflow state machine |
+| Redpanda | Kafka-compatible event bus |
+| PostgreSQL | Primary database |
+| Qdrant | Vector database |
 
 ---
 
@@ -141,33 +124,26 @@ flowchart TB
 
 ```
 iterate_swarm/
-├── ai_service/              # FastAPI backend service
-│   ├── src/
-│   │   ├── agents/          # LangGraph agent implementations
-│   │   ├── api/             # FastAPI routes and endpoints
-│   │   ├── client/          # Callback clients (httpx)
-│   │   ├── core/            # Configuration (pydantic-settings)
-│   │   ├── inngest/         # Inngest workflow definitions
-│   │   ├── schemas/         # Pydantic models
-│   │   └── services/        # External service integrations (Qdrant, Kafka, GitHub)
-│   ├── pyproject.toml       # Python dependencies (uv)
-│   └── tests/               # Python tests (pytest)
+├── apps/
+│   ├── core/              # Go service
+│   │   ├── main.go        # Fiber HTTP server
+│   │   ├── workflow.go    # Temporal workflow definition
+│   │   ├── activities/    # Go activities (Discord, GitHub)
+│   │   └── consumer.go    # Redpanda consumer
+│   │
+│   └── ai/                # Python service (COMPLETED)
+│       ├── src/
+│       │   ├── worker.py  # Temporal worker
+│       │   ├── agents/    # LangGraph agents
+│       │   ├── activities/# Temporal activities
+│       │   └── services/  # Qdrant, etc.
+│       └── tests/         # 17 tests passing
 │
-├── fullstack/               # Next.js web application
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── api/         # API routes (webhooks, issues)
-│   │   │   └── page.tsx     # Dashboard UI
-│   │   ├── components/      # React components
-│   │   └── lib/             # Utility functions
-│   ├── prisma/
-│   │   └── schema.prisma    # Database schema
-│   ├── package.json         # Node.js dependencies (pnpm)
-│   └── e2e/                 # Playwright tests
-│
-├── infra/                   # Infrastructure as code
-├── docker-compose.yml       # Docker services configuration
-└── prd.md                   # Product requirements document
+├── scripts/
+│   └── check-infra.sh     # Infrastructure health check
+├── docker-compose.yml     # Local dev stack
+├── config.yaml           # App configuration
+└── prd.md               # Master plan
 ```
 
 ---
@@ -178,27 +154,20 @@ iterate_swarm/
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **Prisma Schema** | ✅ Complete | FeedbackItem, Issue, AuditLog models |
-| **AI Service (FastAPI)** | ✅ Complete | LangGraph agents, Qdrant, httpx callbacks |
-| **Webhook APIs** | ✅ Complete | Discord (Ed25519), Slack (HMAC) validation |
-| **Internal Save Issue API** | ✅ Complete | Bearer token auth + Prisma transactions |
-| **Issue Approval Flow** | ✅ Complete | GitHub API integration, optimistic locking |
-| **Docker Infrastructure** | ⚠️ Partial | PostgreSQL + Qdrant (Kafka missing) |
+| **Docker Infrastructure** | ✅ Complete | Temporal, Redpanda, PostgreSQL, Qdrant |
+| **AI Worker (Python)** | ✅ Complete | LangGraph agents, Qdrant, Temporal worker |
+| **Go Core** | 🔄 In Progress | Fiber API, workflow, activities |
+| **Test Suite** | ✅ Complete | 17 tests passing |
 
-### Feature Completion
+### Development Phases
 
-- [x] Discord webhook ingestion with signature verification
-- [x] Slack webhook ingestion with HMAC validation
-- [x] FeedbackItem + Issue Prisma schema
-- [x] Triage Agent (LangGraph) for classification
-- [x] Spec Writer Agent (LangGraph) for issue drafting
-- [x] Qdrant vector service for semantic deduplication
-- [x] Internal callback API for saving issues
-- [x] Issue approve/reject endpoints with GitHub API
-- [x] Human-in-the-loop dashboard UI
-- [ ] Kafka containerization (pending)
-- [ ] Dashboard stats API endpoint (pending)
-- [ ] Langfuse observability setup (pending)
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1: Infrastructure | ✅ Complete | Docker Compose, health checks |
+| Phase 2: Go Core | 🔄 In Progress | Fiber webhooks, Temporal workflow |
+| Phase 3: AI Worker | ✅ Complete | Temporal worker, LangGraph agents |
+| Phase 4: Integration | ⏳ Pending | Go + Python workflow, Discord/GitHub |
+| Phase 5: Production | ⏳ Pending | Dockerfiles, CI/CD |
 
 ---
 
@@ -207,19 +176,18 @@ iterate_swarm/
 ### Prerequisites
 
 - Docker and Docker Compose
-- Python 3.13+
-- Node.js 20+ with pnpm
+- Go 1.21+
+- Python 3.11+
 - Git
 
 ### 1. Start Docker Services
 
-Launch the infrastructure services (PostgreSQL and Qdrant):
+Launch the infrastructure services:
 
 ```bash
-# Navigate to project root
 cd /home/aparna/Desktop/iterate_swarm
 
-# Start PostgreSQL and Qdrant containers
+# Start all services
 docker-compose up -d
 
 # Verify services are running
@@ -227,37 +195,24 @@ docker ps
 ```
 
 **Ports:**
-- PostgreSQL: `5433` (default 5432 remapped)
-- Qdrant: `6334` (default 6333 remapped)
+- Temporal: `7233`
+- Redpanda: `9092` (Kafka API), `9644` (Admin)
+- PostgreSQL: `5433`
+- Qdrant: `6334`
 
 ### 2. Configure Environment Variables
 
-#### AI Service
-
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/ai_service
-
 # Copy example env file
 cp .env.example .env
 
 # Edit with your API keys
 ```
 
-#### Web Application
+### 3. Set Up AI Worker
 
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/fullstack
-
-# Copy example env file
-cp .env.example .env
-
-# Edit with your configuration
-```
-
-### 3. Set Up AI Service
-
-```bash
-cd /home/aparna/Desktop/iterate_swarm/ai_service
+cd /home/aparna/Desktop/iterate_swarm/apps/ai
 
 # Install dependencies with uv
 uv sync
@@ -265,31 +220,20 @@ uv sync
 # Run tests
 uv run pytest
 
-# Start development server
-uv run fastapi dev
-
-# Service will be available at http://localhost:8000
-# API docs at http://localhost:8000/docs
+# Start worker
+uv run python -m src.worker
 ```
 
-### 4. Set Up Web Application
+### 4. Set Up Go Core
 
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/fullstack
+cd /home/aparna/Desktop/iterate_swarm/apps/core
 
-# Install dependencies with pnpm
-pnpm install
+# Install dependencies
+go mod tidy
 
-# Generate Prisma client
-pnpm postinstall
-
-# Run database migrations
-pnpm db:migrate
-
-# Start development server
-pnpm dev
-
-# Application will be available at http://localhost:3000
+# Start service
+go run main.go
 ```
 
 ---
@@ -298,60 +242,47 @@ pnpm dev
 
 ### Development Mode
 
-**Terminal 1 - AI Service:**
-```bash
-cd /home/aparna/Desktop/iterate_swarm/ai_service
-uv run fastapi dev
-```
-
-**Terminal 2 - Web Application:**
-```bash
-cd /home/aparna/Desktop/iterate_swarm/fullstack
-pnpm dev
-```
-
-**Terminal 3 - Docker Services (if not running):**
+**Terminal 1 - Docker Services:**
 ```bash
 cd /home/aparna/Desktop/iterate_swarm
 docker-compose up -d
 ```
 
+**Terminal 2 - AI Worker:**
+```bash
+cd /home/aparna/Desktop/iterate_swarm/apps/ai
+uv run python -m src.worker
+```
+
+**Terminal 3 - Go Core:**
+```bash
+cd /home/aparna/Desktop/iterate_swarm/apps/core
+go run main.go
+```
+
 ### Testing
 
 ```bash
-# AI Service tests
-cd /home/aparna/Desktop/iterate_swarm/ai_service
+# AI Worker tests
+cd /home/aparna/Desktop/iterate_swarm/apps/ai
 uv run pytest
 
-# Web Application E2E tests
-cd /home/aparna/Desktop/iterate_swarm/fullstack
-pnpm exec playwright test
+# Go tests
+cd /home/aparna/Desktop/iterate_swarm/apps/core
+go test ./...
 ```
 
 ---
 
 ## API Endpoints
 
-### Webhooks
+### Go Core (Fiber)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/webhooks/discord` | Receive feedback from Discord (Ed25519 signed) |
-| POST | `/api/webhooks/slack` | Receive feedback from Slack (HMAC signed) |
-
-### Internal API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/internal/save-issue` | Save AI-generated issue draft |
-
-### Issues
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/issues` | List all issues |
-| POST | `/api/issues/{id}/approve` | Approve and publish to GitHub |
-| POST | `/api/issues/{id}/reject` | Reject issue draft |
+| POST | `/webhooks/ingest` | Receive feedback -> Push to Redpanda |
+| POST | `/webhooks/interaction` | Discord button clicks -> Signal workflow |
+| GET | `/health` | Health check |
 
 ---
 
@@ -373,9 +304,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- [LangGraph](https://langchain-ai.github.io/langgraph) for the agent orchestration framework
-- [Inngest](https://inngest.com) for event-driven workflow capabilities
-- [Shadcn/UI](https://ui.shadcn.com) for the beautiful component library
+- [Temporal](https://temporal.io) for workflow orchestration
+- [LangGraph](https://langchain-ai.github.io/langgraph) for agent orchestration
+- [Redpanda](https://redpanda.com) for high-performance streaming
 - [Qdrant](https://qdrant.tech) for vector similarity search
 
 ---
