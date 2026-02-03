@@ -13,15 +13,16 @@ services:
       - ENABLE_ES=true
       - ES_SEEDS=elasticsearch
       - LOG_LEVEL=info
-      - DB=postgres
+      - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=iterateswarm
       - POSTGRES_PWD=iterateswarm
       - POSTGRES_SEEDS=postgres
       - TEMPORAL_UI_PORT=8080
+      - BIND_ON_IP=0.0.0.0
     ports:
       - "7233:7233"   # gRPC API
-      - "8080:8080"   # Temporal UI
+      - "8088:8080"   # Temporal UI
     depends_on:
       - postgres
       - elasticsearch

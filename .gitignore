@@ -98,3 +98,5 @@ yarn-error.log*
 *.temp
 tmp/
 temp/
+# Generated protobuf modules
+gen/*/go.mod

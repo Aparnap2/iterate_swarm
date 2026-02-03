@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package ai.v1;
+
+option go_package = "github.com/Aparnap2/iterate_swarm/gen/go/ai/v1;aiv1";
+
+// Agent service handles AI-powered analysis
+service AgentService {
+  rpc AnalyzeFeedback(AnalyzeFeedbackRequest) returns (AnalyzeFeedbackResponse);
+}
+
+message AnalyzeFeedbackRequest {
+  string text = 1;
+  string source = 2;  // e.g., "discord", "slack"
+  string user_id = 3;
+}
+
+message AnalyzeFeedbackResponse {
+  IssueSpec spec = 1;
+  bool is_duplicate = 2;
+  string reasoning = 3;  // Why the AI made this decision
+}
+
+message IssueSpec {
+  string title = 1;
+  Severity severity = 2;
+  IssueType type = 3;
+  string description = 4;
+  repeated string labels = 5;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+enum IssueType {
+  ISSUE_TYPE_UNSPECIFIED = 0;
+  ISSUE_TYPE_BUG = 1;
+  ISSUE_TYPE_FEATURE = 2;
+  ISSUE_TYPE_QUESTION = 3;
+}
