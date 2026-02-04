@@ -23,6 +23,8 @@ services:
     ports:
       - "7233:7233"   # gRPC API
       - "8088:8080"   # Temporal UI
+    volumes:
+      - ./config/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig:ro
     depends_on:
       - postgres
       - elasticsearch

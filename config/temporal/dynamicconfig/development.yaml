@@ -1,0 +1,19 @@
+# Temporal Development Dynamic Configuration
+# See: https://docs.temporal.io/clusters/#dynamic-configuration-file
+
+system.enableUI:
+  - value: true
+
+worker.persistenceRateLimit:
+  - value:
+      maxPollRate: 1000
+      maxQPS: 1000
+
+history.historyServerMaximumPollRPS:
+  - value: 1000
+
+history.matchingLongPollTimeout:
+  - value: "30s"
+
+frontend.advancedVisibilityWritingMode:
+  - value: "on"

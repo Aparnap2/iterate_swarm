@@ -63,6 +63,7 @@ func main() {
 
 	// Routes
 	app.Get("/health", handler.HandleHealth)
+	app.Get("/health/details", handler.HandleDetailedHealth)
 	app.Post("/webhooks/discord", handler.HandleDiscordWebhook)
 	app.Post("/webhooks/interaction", handler.HandleInteraction)
 	app.Get("/test/kafka", handler.HandleKafkaTest)

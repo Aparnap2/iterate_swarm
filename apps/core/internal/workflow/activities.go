@@ -3,12 +3,13 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
 
 	"iterateswarm-core/internal/grpc"
+	"iterateswarm-core/internal/logging"
+	"iterateswarm-core/internal/retry"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/go-github/v50/github"
@@ -18,11 +19,15 @@ import (
 // Activities contains the workflow activities.
 type Activities struct {
 	aiClient *grpc.Client
+	logger   *logging.Logger
 }
 
 // NewActivities creates a new Activities instance.
 func NewActivities(aiClient *grpc.Client) *Activities {
-	return &Activities{aiClient: aiClient}
+	return &Activities{
+		aiClient: aiClient,
+		logger:   logging.NewLogger("workflow"),
+	}
 }
 
 // AnalyzeFeedbackInput is the input for the AnalyzeFeedback activity.
@@ -35,42 +40,50 @@ type AnalyzeFeedbackInput struct {
 
 // AnalyzeFeedbackOutput is the output from the AnalyzeFeedback activity.
 type AnalyzeFeedbackOutput struct {
-	IsDuplicate    bool
-	Reasoning      string
-	Title          string
-	Severity       string
-	IssueType      string
-	Description    string
-	Labels         []string
-	Confidence     float64
+	IsDuplicate   bool
+	Reasoning    string
+	Title        string
+	Severity     string
+	IssueType    string
+	Description  string
+	Labels       []string
+	Confidence   float64
 }
 
 // AnalyzeFeedback calls the Python AI service to analyze feedback.
 func (a *Activities) AnalyzeFeedback(ctx context.Context, input AnalyzeFeedbackInput) (*AnalyzeFeedbackOutput, error) {
-	log.Printf("Analyzing feedback: text=%s, source=%s, user=%s", input.Text, input.Source, input.UserID)
+	startTime := time.Now()
+	a.logger.Info("analyzing feedback",
+		"source", input.Source,
+		"user_id", input.UserID,
+		"text_length", len(input.Text),
+	)
 
 	resp, err := a.aiClient.AnalyzeFeedback(ctx, input.Text, input.Source, input.UserID)
 	if err != nil {
-		log.Printf("AnalyzeFeedback failed: %v", err)
+		a.logger.Error("analyze feedback failed", err,
+			"source", input.Source,
+			"user_id", input.UserID,
+		)
 		return nil, err
 	}
 
 	output := &AnalyzeFeedbackOutput{
-		IsDuplicate: resp.IsDuplicate,
-		Reasoning:   resp.Reasoning,
-		Title:       resp.Spec.Title,
-		Severity:    grpc.GetSeverity(resp),
-		IssueType:   grpc.GetIssueType(resp),
-		Description: resp.Spec.Description,
-		Labels:      resp.Spec.Labels,
-		Confidence:  0.85, // TODO: Get actual confidence from response
+		IsDuplicate:  resp.IsDuplicate,
+		Reasoning:    resp.Reasoning,
+		Title:        resp.Spec.Title,
+		Severity:     grpc.GetSeverity(resp),
+		IssueType:    grpc.GetIssueType(resp),
+		Description:  resp.Spec.Description,
+		Labels:       resp.Spec.Labels,
+		Confidence:   0.85,
 	}
 
-	log.Printf(
-		"AnalyzeFeedback complete: is_duplicate=%v, type=%s, severity=%s",
-		output.IsDuplicate,
-		output.IssueType,
-		output.Severity,
+	duration := time.Since(startTime)
+	a.logger.LogActivity(ctx, "AnalyzeFeedback", duration, true,
+		"is_duplicate", output.IsDuplicate,
+		"issue_type", output.IssueType,
+		"severity", output.Severity,
 	)
 
 	return output, nil
@@ -89,40 +102,46 @@ type SendDiscordApprovalInput struct {
 
 // severityColor maps severity levels to Discord embed colors.
 var severityColor = map[string]int{
-	"critical": 0xff0000, // Red
-	"high":     0xff6600, // Orange
-	"medium":   0xffff00, // Yellow
-	"low":      0x00ff00, // Green
-	"unspecified": 0x808080, // Gray
+	"critical":    0xff0000,
+	"high":        0xff6600,
+	"medium":      0xffff00,
+	"low":         0x00ff00,
+	"unspecified": 0x808080,
 }
 
 // issueTypeEmoji maps issue types to emojis.
 var issueTypeEmoji = map[string]string{
-	"bug":       "🐛",
-	"feature":   "✨",
-	"question":  "❓",
+	"bug":        "🐛",
+	"feature":    "✨",
+	"question":   "❓",
 	"unspecified": "📝",
 }
 
 // SendDiscordApproval sends an approval request to Discord with Approve/Reject buttons.
 func (a *Activities) SendDiscordApproval(ctx context.Context, input SendDiscordApprovalInput) error {
-	log.Printf(
-		"Sending Discord approval request: channel=%s, title=%s",
-		input.ChannelID,
-		input.IssueTitle,
+	startTime := time.Now()
+	a.logger.Info("sending discord approval request",
+		"channel_id", input.ChannelID,
+		"issue_title", input.IssueTitle,
+		"workflow_run_id", input.WorkflowRunID,
 	)
 
 	// Get Discord bot token from environment
 	discordToken := os.Getenv("DISCORD_BOT_TOKEN")
 	if discordToken == "" {
-		log.Printf("DISCORD_BOT_TOKEN not set, skipping Discord notification")
-		return nil // Don't fail the workflow if Discord is not configured
+		a.logger.Warn("discord token not configured, skipping notification")
+		return nil
 	}
 
-	// Create Discord session
-	dg, err := discordgo.New("Bot " + discordToken)
+	// Create Discord session with retry
+	var dg *discordgo.Session
+	err := retry.SimpleRetry(func() error {
+		var createErr error
+		dg, createErr = discordgo.New("Bot " + discordToken)
+		return createErr
+	})
 	if err != nil {
-		log.Printf("Failed to create Discord session: %v", err)
+		a.logger.Error("failed to create discord session", err)
 		return fmt.Errorf("failed to create Discord session: %w", err)
 	}
 
@@ -173,66 +192,79 @@ func (a *Activities) SendDiscordApproval(ctx context.Context, input SendDiscordA
 
 	// Create approve button
 	approveBtn := discordgo.Button{
-		Label:    "✅ Approve",
+		Label:    "Approve",
 		Style:    discordgo.SuccessButton,
 		CustomID: fmt.Sprintf("approve_%s", input.WorkflowRunID),
 	}
 
 	// Create reject button
 	rejectBtn := discordgo.Button{
-		Label:    "❌ Reject",
+		Label:    "Reject",
 		Style:    discordgo.DangerButton,
 		CustomID: fmt.Sprintf("reject_%s", input.WorkflowRunID),
 	}
 
-	// Send message to channel
-	channel, err := dg.Channel(input.ChannelID)
+	// Get channel info and send message with retry
+	var channel *discordgo.Channel
+	err = retry.SimpleRetry(func() error {
+		var channelErr error
+		channel, channelErr = dg.Channel(input.ChannelID)
+		return channelErr
+	})
 	if err != nil {
-		log.Printf("Failed to get Discord channel: %v", err)
+		a.logger.Error("failed to get discord channel", err, "channel_id", input.ChannelID)
 		return fmt.Errorf("failed to get Discord channel: %w", err)
 	}
 
-	log.Printf("Sending Discord approval request to channel: %s", channel.Name)
+	a.logger.Info("sending to discord channel", "channel_name", channel.Name)
 
-	// Use webhook followup for sending messages with components
-	// First we need to create a message reference
-	msg, err := dg.ChannelMessageSendComplex(input.ChannelID, &discordgo.MessageSend{
-		Embeds:     []*discordgo.MessageEmbed{embed},
-		Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{approveBtn, rejectBtn}}},
+	var msg *discordgo.Message
+	err = retry.SimpleRetry(func() error {
+		var sendErr error
+		msg, sendErr = dg.ChannelMessageSendComplex(input.ChannelID, &discordgo.MessageSend{
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: []discordgo.MessageComponent{discordgo.ActionsRow{Components: []discordgo.MessageComponent{approveBtn, rejectBtn}}},
+		})
+		return sendErr
 	})
 	if err != nil {
-		log.Printf("Failed to send Discord message: %v", err)
+		a.logger.Error("failed to send discord message", err, "channel_id", input.ChannelID)
 		return fmt.Errorf("failed to send Discord message: %w", err)
 	}
 
-	log.Printf("Discord approval request sent successfully: message_id=%s", msg.ID)
+	duration := time.Since(startTime)
+	a.logger.LogActivity(ctx, "SendDiscordApproval", duration, true,
+		"message_id", msg.ID,
+		"channel_id", input.ChannelID,
+	)
+
 	return nil
 }
 
 // CreateGitHubIssueInput is the input for the CreateGitHubIssue activity.
 type CreateGitHubIssueInput struct {
-	Title       string
-	Body        string
-	Labels      []string
-	RepoOwner   string
-	RepoName    string
-	Assignee    string
+	Title     string
+	Body      string
+	Labels    []string
+	RepoOwner string
+	RepoName  string
+	Assignee  string
 }
 
 // CreateGitHubIssue creates a GitHub issue when approved.
 func (a *Activities) CreateGitHubIssue(ctx context.Context, input CreateGitHubIssueInput) (string, error) {
-	log.Printf(
-		"Creating GitHub issue: title=%s, repo=%s/%s",
-		input.Title,
-		input.RepoOwner,
-		input.RepoName,
+	startTime := time.Now()
+	a.logger.Info("creating github issue",
+		"title", input.Title,
+		"repo_owner", input.RepoOwner,
+		"repo_name", input.RepoName,
 	)
 
 	// Get GitHub token from environment
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	if githubToken == "" {
-		log.Printf("GITHUB_TOKEN not set, skipping GitHub issue creation")
-		return "", nil // Don't fail the workflow if GitHub is not configured
+		a.logger.Warn("github token not configured, skipping issue creation")
+		return "", nil
 	}
 
 	// Create OAuth2 client for GitHub authentication
@@ -278,15 +310,27 @@ func (a *Activities) CreateGitHubIssue(ctx context.Context, input CreateGitHubIs
 		issueRequest.Assignee = &input.Assignee
 	}
 
-	// Create the issue
-	issue, _, err := client.Issues.Create(ctx, owner, repo, issueRequest)
+	// Create the issue with retry
+	var issue *github.Issue
+	err := retry.SimpleRetry(func() error {
+		var createErr error
+		issue, _, createErr = client.Issues.Create(ctx, owner, repo, issueRequest)
+		return createErr
+	})
 	if err != nil {
-		log.Printf("Failed to create GitHub issue: %v", err)
+		a.logger.Error("failed to create github issue", err,
+			"owner", owner,
+			"repo", repo,
+		)
 		return "", fmt.Errorf("failed to create GitHub issue: %w", err)
 	}
 
 	issueURL := issue.GetHTMLURL()
-	log.Printf("GitHub issue created successfully: url=%s, number=%d", issueURL, issue.GetNumber())
+	duration := time.Since(startTime)
+	a.logger.LogActivity(ctx, "CreateGitHubIssue", duration, true,
+		"issue_url", issueURL,
+		"issue_number", issue.GetNumber(),
+	)
 
 	return issueURL, nil
 }
