@@ -47,9 +47,7 @@ func (c *Client) StartWorkflow(ctx context.Context, workflowID, taskQueue string
 }
 
 // SignalWorkflow sends a signal to a workflow.
-func (c *Client) SignalWorkflow(workflowID, signalName string, payload interface{}) error {
-	ctx := context.Background()
-
+func (c *Client) SignalWorkflow(ctx context.Context, workflowID, signalName string, payload interface{}) error {
 	err := c.Client.SignalWorkflow(ctx, workflowID, "", signalName, payload)
 	if err != nil {
 		log.Printf("Failed to signal workflow: %v", err)
@@ -62,7 +60,7 @@ func (c *Client) SignalWorkflow(workflowID, signalName string, payload interface
 
 // Health checks if the client is healthy.
 func (c *Client) Health(ctx context.Context) error {
-	_, err := c.Client.DescribeWorkflowExecution(ctx, "health-check", "")
+	_, err := c.Client.CheckHealth(ctx, nil)
 	return err
 }
 

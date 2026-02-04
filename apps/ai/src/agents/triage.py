@@ -2,7 +2,6 @@
 
 from typing import Any, TypedDict
 
-from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import END, StateGraph
@@ -134,10 +133,16 @@ async def triage_node(state: TriageState) -> dict[str, Any]:
 
     # Call LLM with structured output
     response = await llm.chat.completions.create(
-        messages=[HumanMessage(content=formatted_prompt[1].content)],
+        messages=[
+            {"role": "system", "content": formatted_prompt[0].content},
+            {"role": "user", "content": formatted_prompt[1].content},
+        ],
         model=get_config().ollama.model,
         temperature=0.1,
     )
+
+    if not response.choices or not response.choices[0].message.content:
+        raise ValueError("LLM returned empty response")
 
     # Parse structured output
     result = parser.parse(response.choices[0].message.content)

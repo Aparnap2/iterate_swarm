@@ -73,7 +73,7 @@ func (a *Activities) SendDiscordApproval(...) error {
 import "github.com/raft-tech/tenacity"
 
 func (a *Activities) SendDiscordApproval(ctx context.Context, ...) error {
-    return tenacity.New tenacity.Config{
+    return tenacity.Config{
         MaxRetries:           3,
         RetryDelay:           1 * time.Second,
         RetryJitter:          100 * time.Millisecond,
@@ -509,7 +509,7 @@ apps/core/
 
 ```dockerfile
 # apps/core/Dockerfile
-FROM golang:1.24-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -551,7 +551,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23'
 
       - name: Run Go tests
         run: |

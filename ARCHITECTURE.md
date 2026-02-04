@@ -867,7 +867,7 @@ func (a *Activities) CreateGitHubIssue(ctx context.Context, input CreateGitHubIs
     tc := oauth2.NewClient(ctx, ts)
     client := github.NewClient(tc)
 
-    issue, _, err := client.Issues.Create(ctx, owner, repo, &github.IssueRequest{
+    issue, _, err := client.Issues.Create(ctx, input.RepoOwner, input.RepoName, &github.IssueRequest{
         Title:  &input.Title,
         Body:   &input.Body,
         Labels: &input.Labels,
@@ -891,7 +891,7 @@ class AgentServicer(pb2_grpc.AgentServiceServicer):
         """Analyze feedback and return structured issue specification."""
 
         # 1. Check for duplicates using Qdrant
-        is_duplicate, similarity_score = await self.qdrant.check_duplicate(request.text)
+        is_duplicate, similarity_score = await self.qdrant.find_similar(request.text)
 
         if is_duplicate:
             log.info(

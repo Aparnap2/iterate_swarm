@@ -27,7 +27,10 @@ async def run_worker():
     )
 
     # Connect to Temporal server
-    client = await Client.connect(target=config.temporal.address)
+    client = await Client.connect(
+        target=config.temporal.address,
+        namespace=config.temporal.namespace,
+    )
 
     # Create worker
     worker = Worker(

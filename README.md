@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)
-![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python)
 ![Temporal](https://img.shields.io/badge/Temporal-Orchestration-FF6B6B?style=flat-square)
 
 **Polyglot ChatOps Platform for AI-Powered Feedback Triage**
@@ -34,7 +34,7 @@ IterateSwarm is a production-grade Polyglot ChatOps platform:
 - **Semantic Deduplication** - Qdrant vector similarity to merge duplicate feedback
 - **Agentic Triaging** - LangGraph agents classify (Bug/Feature/Question) and score severity
 - **Spec Generation** - AI-powered structured GitHub Issue drafting
-- **ChatOps** - Discord Block Kit buttons for human-in-the-loop approval
+- **ChatOps** - Discord Message Components (buttons) for human-in-the-loop approval
 - **Full Observability** - Temporal UI for workflow tracing
 
 ---
@@ -185,7 +185,7 @@ iterate_swarm/
 Launch the infrastructure services:
 
 ```bash
-cd /home/aparna/Desktop/iterate_swarm
+cd iterate_swarm
 
 # Start all services
 docker-compose up -d
@@ -195,10 +195,10 @@ docker ps
 ```
 
 **Ports:**
-- Temporal: `7233`
-- Redpanda: `9092` (Kafka API), `9644` (Admin)
-- PostgreSQL: `5433`
-- Qdrant: `6334`
+- Temporal: `7233` (gRPC), `8088` (UI)
+- Redpanda: `19092` (Kafka), `9644` (Admin), `8082` (REST Proxy)
+- PostgreSQL: `5432`
+- Qdrant: `6333` (REST), `6334` (gRPC)
 
 ### 2. Configure Environment Variables
 
@@ -212,7 +212,7 @@ cp .env.example .env
 ### 3. Set Up AI Worker
 
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/apps/ai
+cd apps/ai
 
 # Install dependencies with uv
 uv sync
@@ -227,7 +227,7 @@ uv run python -m src.worker
 ### 4. Set Up Go Core
 
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/apps/core
+cd apps/core
 
 # Install dependencies
 go mod tidy
@@ -244,19 +244,19 @@ go run main.go
 
 **Terminal 1 - Docker Services:**
 ```bash
-cd /home/aparna/Desktop/iterate_swarm
+cd iterate_swarm
 docker-compose up -d
 ```
 
 **Terminal 2 - AI Worker:**
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/apps/ai
+cd apps/ai
 uv run python -m src.worker
 ```
 
 **Terminal 3 - Go Core:**
 ```bash
-cd /home/aparna/Desktop/iterate_swarm/apps/core
+cd apps/core
 go run main.go
 ```
 
@@ -264,11 +264,11 @@ go run main.go
 
 ```bash
 # AI Worker tests
-cd /home/aparna/Desktop/iterate_swarm/apps/ai
+cd apps/ai
 uv run pytest
 
 # Go tests
-cd /home/aparna/Desktop/iterate_swarm/apps/core
+cd apps/core
 go test ./...
 ```
 

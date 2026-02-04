@@ -47,6 +47,7 @@ func FeedbackWorkflow(ctx workflow.Context, input FeedbackInput) error {
 	}
 
 	// Step 2: Send approval request to Discord
+	workflowInfo := workflow.GetInfo(ctx)
 	err = workflow.ExecuteActivity(ctx, "SendDiscordApproval", SendDiscordApprovalInput{
 		ChannelID:     input.ChannelID,
 		IssueTitle:    analyzeResult.Title,
@@ -54,7 +55,7 @@ func FeedbackWorkflow(ctx workflow.Context, input FeedbackInput) error {
 		IssueLabels:   analyzeResult.Labels,
 		Severity:      analyzeResult.Severity,
 		IssueType:     analyzeResult.IssueType,
-		WorkflowRunID: "workflow-" + input.UserID + "-" + input.Source,
+		WorkflowRunID: workflowInfo.WorkflowExecution.RunID,
 	}).Get(ctx, nil)
 	if err != nil {
 		return err

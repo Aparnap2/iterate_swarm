@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -150,11 +151,15 @@ func (h *Handler) HandleInteraction(c *fiber.Ctx) error {
 		"channel_id", req.ChannelID,
 	)
 
-	// Signal the workflow (simplified - in production parse custom_id)
-	action := "approve"
+	// Signal the workflow (parse custom_id for action and workflowID)
+	parts := strings.Split(req.Data.CustomID, ":")
+	action := parts[0]
 	workflowID := ""
+	if len(parts) > 1 {
+		workflowID = parts[1]
+	}
 
-	err := h.temporalClient.SignalWorkflow(workflowID, "user-action", action)
+	err := h.temporalClient.SignalWorkflow(c.Context(), workflowID, "user-action", action)
 	if err != nil {
 		h.logger.Error("failed to signal workflow", err, "workflow_id", workflowID, "action", action)
 		return c.Status(fiber.StatusInternalServerError).JSON(map[string]string{

@@ -67,12 +67,14 @@ func (c *Client) AnalyzeFeedback(ctx context.Context, text, source, userID strin
 		return nil, err
 	}
 
-	log.Printf(
-		"AI analysis complete: is_duplicate=%v, type=%v, severity=%v",
-		resp.IsDuplicate,
-		resp.Spec.Type,
-		resp.Spec.Severity,
-	)
+	if resp != nil && resp.Spec != nil {
+		log.Printf(
+			"AI analysis complete: is_duplicate=%v, type=%v, severity=%v",
+			resp.IsDuplicate,
+			resp.Spec.Type,
+			resp.Spec.Severity,
+		)
+	}
 
 	return resp, nil
 }
@@ -90,6 +92,9 @@ func IsDuplicate(resp *pb.AnalyzeFeedbackResponse) bool {
 
 // GetSeverity returns the severity as a string.
 func GetSeverity(resp *pb.AnalyzeFeedbackResponse) string {
+	if resp == nil || resp.Spec == nil {
+		return "unspecified"
+	}
 	switch resp.Spec.Severity {
 	case pb.Severity_SEVERITY_LOW:
 		return "low"
@@ -106,6 +111,9 @@ func GetSeverity(resp *pb.AnalyzeFeedbackResponse) string {
 
 // GetIssueType returns the issue type as a string.
 func GetIssueType(resp *pb.AnalyzeFeedbackResponse) string {
+	if resp == nil || resp.Spec == nil {
+		return "unspecified"
+	}
 	switch resp.Spec.Type {
 	case pb.IssueType_ISSUE_TYPE_BUG:
 		return "bug"
