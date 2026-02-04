@@ -1,7 +1,7 @@
 # IterateSwarm Makefile
 # Quick commands for development and operations
 
-.PHONY: help up down status test build clean proto verify deps logs
+.PHONY: help up down status test build clean proto verify deps logs restart
 
 # Default target
 help:

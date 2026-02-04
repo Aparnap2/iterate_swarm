@@ -10,8 +10,8 @@ temporal:
 
 # Ollama (OpenAI-compatible API)
 ollama:
-  base_url: "http://localhost:11434/v1"
-  api_key: "ollama"  # Dummy key for Ollama
+  base_url: ${OLLAMA_BASE_URL:-http://localhost:11434/v1}
+  api_key: ${OLLAMA_API_KEY:-ollama}  # Dummy key for Ollama
   model: "qwen2.5-coder:3b"
   embedding_model: "nomic-embed-text"
 

@@ -23,7 +23,9 @@ from src.config import get_config
 from src.grpc_server import serve as start_grpc_server, AgentServicer
 
 # Import generated proto
-sys.path.insert(0, '/home/aparna/Desktop/iterate_swarm/gen/python')
+import os
+_PROTO_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'gen', 'python')
+sys.path.insert(0, _PROTO_PATH)
 import ai.v1.agent_pb2_grpc as pb2_grpc
 
 logger = structlog.get_logger(__name__)
@@ -41,7 +43,10 @@ async def run_temporal_worker():
     )
 
     # Connect to Temporal server
-    client = await Client.connect(target=config.temporal.address)
+    client = await Client.connect(
+        target=config.temporal.address,
+        namespace=config.temporal.namespace,
+    )
 
     # Create worker
     worker = Worker(

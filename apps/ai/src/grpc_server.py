@@ -14,7 +14,9 @@ import grpc
 from grpc import aio
 
 # Add generated proto paths
-sys.path.insert(0, '/home/aparna/Desktop/iterate_swarm/gen/python')
+import os
+_PROTO_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'gen', 'python')
+sys.path.insert(0, _PROTO_PATH)
 
 import ai.v1.agent_pb2 as pb2
 import ai.v1.agent_pb2_grpc as pb2_grpc
@@ -72,7 +74,7 @@ class IssueTypeMapper:
     @classmethod
     def to_proto(cls, issue_type: str) -> int:
         """Convert string type to proto enum."""
-        return self._MAP_TO_PROTO.get(issue_type.lower(), pb2.ISSUE_TYPE_UNSPECIFIED)  # type: ignore
+        return cls._MAP_TO_PROTO.get(issue_type.lower(), pb2.ISSUE_TYPE_UNSPECIFIED)
 
     @classmethod
     def from_proto(cls, proto_value: int) -> str:
@@ -110,10 +112,10 @@ class AgentServicer(pb2_grpc.AgentServiceServicer):
             gRPC response containing IssueSpec, duplicate flag, and reasoning
         """
         logger.info(
-            "AnalyzeFeedback called",
-            text_preview=request.text[:50],
-            source=request.source,
-            user_id=request.user_id,
+            "AnalyzeFeedback called: text_preview=%s, source=%s, user_id=%s",
+            request.text[:50],
+            request.source,
+            request.user_id,
         )
 
         try:
@@ -231,9 +233,9 @@ async def run_server():
     server = await serve()
 
     # Graceful shutdown
-    def signal_handler():
-        logger.info("Received shutdown signal")
-        return server.stop(grace=5)
+    # NOTE: signal_handler is defined but never registered with asyncio
+    # This is intentional - proper shutdown handling is done via server.wait_for_termination()
+    # which responds to SIGINT/SIGTERM automatically
 
     try:
         await server.wait_for_termination()

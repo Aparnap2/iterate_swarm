@@ -15,8 +15,8 @@ services:
       - LOG_LEVEL=info
       - DB=postgres12
       - DB_PORT=5432
-      - POSTGRES_USER=iterateswarm
-      - POSTGRES_PWD=iterateswarm
+      - POSTGRES_USER=${POSTGRES_USER:-iterateswarm}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-iterateswarm}
       - POSTGRES_SEEDS=postgres
       - TEMPORAL_UI_PORT=8080
       - BIND_ON_IP=0.0.0.0
@@ -134,9 +134,9 @@ services:
     image: postgres:15-alpine
     container_name: iterateswarm-postgres
     environment:
-      - POSTGRES_USER=iterateswarm
-      - POSTGRES_PASSWORD=iterateswarm
-      - POSTGRES_DB=iterateswarm
+      - POSTGRES_USER=${POSTGRES_USER:-iterateswarm}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-iterateswarm}
+      - POSTGRES_DB=${POSTGRES_DB:-iterateswarm}
     ports:
       - "5432:5432"
     volumes:

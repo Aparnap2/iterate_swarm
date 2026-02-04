@@ -53,7 +53,7 @@ check_service() {
             ((FAILED++))
         fi
     elif [ "$check_type" == "postgres" ]; then
-        if PGPASSWORD=iterateswarm psql -h localhost -U iterateswarm -d iterateswarm -c "SELECT 1" > /dev/null 2>&1; then
+        if PGPASSWORD=${POSTGRES_PASSWORD:-iterateswarm} psql -h localhost -U ${POSTGRES_USER:-iterateswarm} -d ${POSTGRES_DB:-iterateswarm} -c "SELECT 1" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ HEALTHY${NC}"
             ((PASSED++))
         else
