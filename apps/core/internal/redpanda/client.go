@@ -72,8 +72,28 @@ func NewClient(brokers []string, topic string) (*Client, error) {
 	}, nil
 }
 
-// Publish sends a message to the specified topic.
-func (c *Client) Publish(topic string, value []byte) error {
+// Publish sends a message to the configured topic.
+func (c *Client) Publish(value []byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	msg := kafka.Message{
+		Value: value,
+		Key:   []byte(time.Now().Format(time.RFC3339)),
+	}
+
+	err := c.writer.WriteMessages(ctx, msg)
+	if err != nil {
+		log.Printf("Failed to publish message: %v", err)
+		return err
+	}
+
+	log.Printf("Message published to %s", c.topic)
+	return nil
+}
+
+// PublishToTopic sends a message to a specific topic (overrides configured topic).
+func (c *Client) PublishToTopic(topic string, value []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -95,7 +115,7 @@ func (c *Client) Publish(topic string, value []byte) error {
 
 // PublishFeedback sends a feedback event.
 func (c *Client) PublishFeedback(data []byte) error {
-	return c.Publish(c.topic, data)
+	return c.Publish(data)
 }
 
 // Consume consumes messages from a topic.

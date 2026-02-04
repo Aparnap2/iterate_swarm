@@ -82,7 +82,8 @@ services:
       - --schema-registry-addr=0.0.0.0:8081
       - --rpc-addr=0.0.0.0:33145
       - --advertise-rpc-addr=redpanda:33145
-      - --seed-ips=redpanda:33145
+      - --overprovisioned
+      - --unsafe-bypass-fsync=true
     ports:
       - "19092:9092"  # Kafka API (internal)
       - "9094:9094"   # Kafka API (external - for local dev)

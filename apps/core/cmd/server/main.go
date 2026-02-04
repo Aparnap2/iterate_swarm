@@ -19,7 +19,7 @@ import (
 
 func main() {
 	// Command line flags
-	redpandaBrokers := flag.String("redpanda", "localhost:19092", "Redpanda brokers")
+	redpandaBrokers := flag.String("redpanda", "localhost:9094", "Redpanda brokers")
 	temporalAddr := flag.String("temporal", "localhost:7233", "Temporal address")
 	namespace := flag.String("namespace", "default", "Temporal namespace")
 	port := flag.String("port", "3000", "HTTP server port")
