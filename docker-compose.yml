@@ -169,12 +169,34 @@ services:
       timeout: 10s
       retries: 5
 
+  # ===========================================
+  # pgAdmin - PostgreSQL Management UI
+  # ===========================================
+  pgadmin:
+    image: dpage/pgadmin4:8.0
+    container_name: iterateswarm-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@localhost
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - iterateswarm-net
+    depends_on:
+      - postgres
+
 volumes:
   redpanda-data:
     driver: local
   postgres-data:
     driver: local
   qdrant-data:
+    driver: local
+  pgadmin-data:
     driver: local
 
 networks:
