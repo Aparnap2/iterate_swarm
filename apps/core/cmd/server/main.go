@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"iterateswarm-core/internal/api"
+	"iterateswarm-core/internal/debug"
 	"iterateswarm-core/internal/redpanda"
 	"iterateswarm-core/internal/temporal"
 )
@@ -67,6 +68,10 @@ func main() {
 	app.Post("/webhooks/discord", handler.HandleDiscordWebhook)
 	app.Post("/webhooks/interaction", handler.HandleInteraction)
 	app.Get("/test/kafka", handler.HandleKafkaTest)
+
+	// Debug routes (LiteDebug Console)
+	debugHandler := debug.NewHandler(redpandaClient, temporalClient, "http://localhost:16686")
+	debugHandler.RegisterRoutes(app)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
