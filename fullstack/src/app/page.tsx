@@ -5,6 +5,8 @@ import { getDashboardStats, getRecentActivity } from '@/app/actions/issues';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AuthStatus } from '@/components/auth-status';
+import { DebugSidebar } from '@/components/debug-sidebar';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,149 +81,175 @@ async function DashboardContent() {
   ]);
 
   return (
-    <div className="min-h-screen bg-stone-50 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-stone-900">IterateSwarm</h1>
-            <p className="text-stone-600 mt-1">
-              AI-Powered Feedback Triage & Issue Management
-            </p>
+    <div className="min-h-screen bg-stone-50 flex">
+      {/* Debug Sidebar */}
+      <DebugSidebar />
+
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-auto">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-stone-900">IterateSwarm</h1>
+              <p className="text-stone-600 mt-1">
+                AI-Powered Feedback Triage & Issue Management
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <AuthStatus />
+              <Link
+                href="/issues"
+                className="bg-stone-900 text-white px-4 py-2 rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                Review Issues
+              </Link>
+            </div>
           </div>
-          <Link
-            href="/issues"
-            className="bg-stone-900 text-white px-4 py-2 rounded-lg hover:bg-stone-800 transition-colors"
-          >
-            Review Issues
-          </Link>
-        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Pending Feedback"
-            value={stats.pendingFeedback}
-            icon="📥"
-            color="blue"
-          />
-          <StatCard
-            title="Draft Issues"
-            value={stats.draftIssues}
-            icon="📝"
-            color="amber"
-            href="/issues"
-          />
-          <StatCard
-            title="Published"
-            value={stats.publishedIssues}
-            icon="✅"
-            color="green"
-          />
-          <StatCard
-            title="Rejected"
-            value={stats.rejectedIssues}
-            icon="❌"
-            color="red"
-          />
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Recent Feedback */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Recent Feedback</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activity.feedback.length === 0 ? (
-                <p className="text-stone-500 text-sm">No feedback yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {activity.feedback.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start justify-between gap-2 p-2 rounded-lg bg-stone-100"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-stone-900 truncate">
-                          {item.content}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {item.source}
-                          </Badge>
-                          <Badge
-                            variant={
-                              item.status === 'completed'
-                                ? 'default'
-                                : 'outline'
-                            }
-                            className="text-xs"
-                          >
-                            {item.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <span className="text-xs text-stone-500 whitespace-nowrap">
-                        {formatDistanceToNow(new Date(item.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </div>
-                  ))}
+          {/* Auth Notice */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-blue-100 text-blue-800">Authentication</Badge>
+                  <p className="text-sm text-blue-700">
+                    Better Auth configured. Sign in to access protected routes.
+                  </p>
                 </div>
-              )}
+                <Link href="/sign-in" className="text-sm text-blue-600 hover:underline">
+                  Sign In →
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Published Issues */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Published on GitHub</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activity.publishedIssues.length === 0 ? (
-                <p className="text-stone-500 text-sm">No published issues yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {activity.publishedIssues.map((issue) => (
-                    <div
-                      key={issue.id}
-                      className="flex items-start justify-between gap-2 p-2 rounded-lg bg-stone-100"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-stone-900 truncate font-medium">
-                          {issue.title}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {issue.labels.slice(0, 3).map((label, idx) => (
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard
+              title="Pending Feedback"
+              value={stats.pendingFeedback}
+              icon="📥"
+              color="blue"
+            />
+            <StatCard
+              title="Draft Issues"
+              value={stats.draftIssues}
+              icon="📝"
+              color="amber"
+              href="/issues"
+            />
+            <StatCard
+              title="Published"
+              value={stats.publishedIssues}
+              icon="✅"
+              color="green"
+            />
+            <StatCard
+              title="Rejected"
+              value={stats.rejectedIssues}
+              icon="❌"
+              color="red"
+            />
+          </div>
+
+          {/* Recent Activity */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Recent Feedback */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activity.feedback.length === 0 ? (
+                  <p className="text-stone-500 text-sm">No feedback yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activity.feedback.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between gap-2 p-2 rounded-lg bg-stone-100"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-stone-900 truncate">
+                            {item.content}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {item.source}
+                            </Badge>
                             <Badge
-                              key={`${label}-${idx}`}
-                              variant="secondary"
+                              variant={
+                                item.status === 'completed'
+                                  ? 'default'
+                                  : 'outline'
+                              }
                               className="text-xs"
                             >
-                              {label}
+                              {item.status}
                             </Badge>
-                          ))}
+                          </div>
                         </div>
+                        <span className="text-xs text-stone-500 whitespace-nowrap">
+                          {formatDistanceToNow(new Date(item.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </span>
                       </div>
-                      {issue.githubUrl && (
-                        <a
-                          href={issue.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline whitespace-nowrap"
-                        >
-                          View →
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Published Issues */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Published on GitHub</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activity.publishedIssues.length === 0 ? (
+                  <p className="text-stone-500 text-sm">No published issues yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {activity.publishedIssues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="flex items-start justify-between gap-2 p-2 rounded-lg bg-stone-100"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-stone-900 truncate font-medium">
+                            {issue.title}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {issue.labels.slice(0, 3).map((label, idx) => (
+                              <Badge
+                                key={`${label}-${idx}`}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        {issue.githubUrl && (
+                          <a
+                            href={issue.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                          >
+                            View →
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

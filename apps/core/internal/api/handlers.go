@@ -104,9 +104,9 @@ func (h *Handler) HandleDiscordWebhook(c *fiber.Ctx) error {
 		})
 	}
 
-	err = h.redpandaClient.Publish("feedback-events", data)
+	err = h.redpandaClient.Publish(data)
 	if err != nil {
-		h.logger.Error("failed to publish to redpanda", err, "feedback_id", feedbackID, "topic", "feedback-events")
+		h.logger.Error("failed to publish to redpanda", err, "feedback_id", feedbackID)
 		return c.Status(fiber.StatusInternalServerError).JSON(map[string]string{
 			"error": "Failed to queue event",
 		})
@@ -270,7 +270,7 @@ func (h *Handler) HandleKafkaTest(c *fiber.Ctx) error {
 	}
 
 	data, _ := json.Marshal(event)
-	if err := h.redpandaClient.Publish("feedback-events", data); err != nil {
+	if err := h.redpandaClient.Publish(data); err != nil {
 		h.logger.Warn("failed to publish test message", "error", err.Error())
 	}
 

@@ -6,54 +6,41 @@ export const dynamic = 'force-dynamic';
 
 const dashboards = [
   {
-    name: 'Redpanda Console',
-    description: 'Kafka topic browser, message production/consumption, schema registry',
-    url: 'http://localhost:8080',
-    icon: '📊',
-    color: 'bg-red-500',
-    features: ['Topics', 'Messages', 'Schemas', 'Consumers'],
-  },
-  {
-    name: 'Temporal Web UI',
-    description: 'Workflow monitoring, execution history, workers status',
-    url: 'http://localhost:8088',
-    icon: '⚡',
-    color: 'bg-purple-500',
-    features: ['Workflows', 'History', 'Workers', 'Namespaces'],
-  },
-  {
-    name: 'Jaeger Tracing',
-    description: 'Distributed trace visualization, service dependencies',
-    url: 'http://localhost:16686',
-    icon: '🔍',
-    color: 'bg-amber-500',
-    features: ['Traces', 'Spans', 'Services', 'Latency'],
-  },
-  {
-    name: 'pgAdmin',
-    description: 'PostgreSQL database management, query tool, schema browser',
-    url: 'http://localhost:5050',
-    icon: '🐘',
-    color: 'bg-blue-500',
-    features: ['Query Tool', 'Schemas', 'Tables', 'Users'],
-    note: 'Email: admin@localhost | Password: admin',
-  },
-  {
-    name: 'Prisma Studio',
-    description: 'Database GUI for IterateSwarm data (Feedback, Issues)',
-    url: 'http://localhost:5555',
-    icon: '🗄️',
-    color: 'bg-teal-500',
-    features: ['Feedback', 'Issues', 'Audit Logs', 'Relations'],
+    name: 'Supabase Studio',
+    description: 'Database, Auth, Storage, Realtime - all-in-one',
+    url: 'http://localhost:3000',
+    icon: '🔥',
+    color: 'bg-orange-500',
+    features: ['Database', 'Auth', 'Storage', 'Realtime'],
+    note: 'Primary backend for IterateSwarm',
   },
   {
     name: 'NetData',
-    description: 'Real-time infrastructure monitoring (CPU, Memory, Disk, Network)',
+    description: 'Real-time infrastructure monitoring',
     url: 'http://localhost:19999',
     icon: '📈',
     color: 'bg-green-500',
     features: ['CPU', 'Memory', 'Disk', 'Network'],
+    status: 'running',
   },
+  {
+    name: 'Ollama',
+    description: 'Local LLM inference engine',
+    url: 'http://localhost:11434',
+    icon: '🧠',
+    color: 'bg-purple-500',
+    features: ['LLM Inference', 'Embeddings', 'Models'],
+    status: 'docker',
+  },
+];
+
+const localServices = [
+  { port: '3001', name: 'Next.js Frontend', status: 'local' },
+  { port: '3000', name: 'Supabase Studio', status: 'docker' },
+  { port: '5432', name: 'PostgreSQL (Supabase)', status: 'docker' },
+  { port: '6333', name: 'Qdrant Vector DB', status: 'docker' },
+  { port: '11434', name: 'Ollama LLM', status: 'docker' },
+  { port: '19999', name: 'NetData Monitoring', status: 'running' },
 ];
 
 export default function DebugPage() {
@@ -88,7 +75,7 @@ export default function DebugPage() {
                       {dashboard.name}
                     </CardTitle>
                     <Badge variant="secondary" className="mt-1 text-xs">
-                      External
+                      {dashboard.status || 'External'}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -112,7 +99,7 @@ export default function DebugPage() {
           ))}
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
@@ -120,53 +107,79 @@ export default function DebugPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <a
-                href="http://localhost:8080/topics/feedback-events"
+                href="http://localhost:3000"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
               >
-                <span className="text-2xl">📨</span>
+                <span className="text-2xl">🔥</span>
                 <div>
-                  <p className="font-medium">View Feedback Topic</p>
-                  <p className="text-sm text-stone-500">See Kafka messages</p>
+                  <p className="font-medium">Supabase Studio</p>
+                  <p className="text-sm text-stone-500">Database & Auth</p>
                 </div>
               </a>
               <a
-                href="http://localhost:8088/namespaces/default/workflows"
+                href="http://localhost:11434"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
+              >
+                <span className="text-2xl">🧠</span>
+                <div>
+                  <p className="font-medium">Ollama</p>
+                  <p className="text-sm text-stone-500">LLM Models</p>
+                </div>
+              </a>
+              <a
+                href="http://localhost:19999"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
+              >
+                <span className="text-2xl">📈</span>
+                <div>
+                  <p className="font-medium">NetData</p>
+                  <p className="text-sm text-stone-500">Monitoring</p>
+                </div>
+              </a>
+              <a
+                href="http://localhost:3001"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
               >
                 <span className="text-2xl">⚡</span>
                 <div>
-                  <p className="font-medium">Workflow Executions</p>
-                  <p className="text-sm text-stone-500">Monitor AI processing</p>
+                  <p className="font-medium">IterateSwarm</p>
+                  <p className="text-sm text-stone-500">Next.js App</p>
                 </div>
               </a>
-              <a
-                href="http://localhost:16686/search?service=iterateswarm"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
-              >
-                <span className="text-2xl">🔍</span>
-                <div>
-                  <p className="font-medium">Search Traces</p>
-                  <p className="text-sm text-stone-500">Debug distributed calls</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Service Ports Reference */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Service Ports Reference</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              {localServices.map((service) => (
+                <div
+                  key={service.port}
+                  className={`flex items-center justify-between p-3 rounded ${
+                    service.status === 'running'
+                      ? 'bg-green-100'
+                      : service.status === 'docker'
+                      ? 'bg-blue-100'
+                      : 'bg-stone-100'
+                  }`}
+                >
+                  <span className="font-mono">{service.port}</span>
+                  <span>{service.name}</span>
                 </div>
-              </a>
-              <a
-                href="http://localhost:5050/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 rounded-lg border hover:bg-stone-50 transition-colors"
-              >
-                <span className="text-2xl">🔎</span>
-                <div>
-                  <p className="font-medium">Query Database</p>
-                  <p className="text-stone-500">SQL queries</p>
-                </div>
-              </a>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -190,90 +203,51 @@ export default function DebugPage() {
 │         └───────────────────┴───────────────────┘                  │
 │                           │                                          │
 │                    ┌──────▼──────┐                                  │
-│                    │  Go Server  │  (localhost:3000)               │
-│                    │  /webhooks  │                                  │
+│                    │  Next.js    │  (localhost:3001)                 │
+│                    │  Frontend   │                                  │
 │                    └──────┬──────┘                                  │
 │                           │                                          │
 │         ┌─────────────────┼─────────────────┐                        │
 │         ▼                 ▼                 ▼                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Redpanda   │  │  Temporal   │  │  PostgreSQL │              │
-│  │ (Kafka)     │  │  Workflow   │  │  Database   │              │
-│  │ :9092/8080  │  │  :7233/8088 │  │  :5432/5050 │              │
+│  │  Supabase   │  │   Ollama    │  │  Qdrant     │              │
+│  │  (Postgres) │  │  LLM        │  │  Vector DB  │              │
+│  │  :5432      │  │  :11434     │  │  :6333      │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 │                           │                                          │
 │                    ┌──────▼──────┐                                  │
-│                    │  Python AI  │  (LangGraph Agents)              │
-│                    │  Ollama     │  (localhost:11434)              │
-│                    └──────┬──────┘                                  │
-│                           │                                          │
-│         ┌─────────────────┼─────────────────┐                        │
-│         ▼                 ▼                 ▼                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Qdrant     │  │  Jaeger     │  │  GitHub     │              │
-│  │  Vector DB  │  │  Tracing    │  │  API        │              │
-│  │  :6333      │  │  :16686     │  │             │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
+│                    │  NetData    │  (localhost:19999)               │
+│                    │  Monitoring │                                  │
+│                    └─────────────┘                                  │
 │                                                                       │
 └─────────────────────────────────────────────────────────────────────┘`}
             </pre>
           </CardContent>
         </Card>
 
-        {/* Service Status */}
+        {/* Authentication */}
         <Card>
           <CardHeader>
-            <CardTitle>Service Ports Reference</CardTitle>
+            <CardTitle>Authentication</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center justify-between p-3 bg-stone-100 rounded">
-                <span className="font-mono">localhost:3000</span>
-                <span>Go API Server</span>
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className="bg-blue-100 text-blue-800">Better Auth</Badge>
+                </div>
+                <p className="text-sm text-blue-700">
+                  Email/password and GitHub OAuth authentication configured.
+                  Sign in at <code className="bg-blue-100 px-1 rounded">/sign-in</code>
+                </p>
               </div>
-              <div className="flex items-center justify-between p-3 bg-stone-100 rounded">
-                <span className="font-mono">localhost:3001</span>
-                <span>Next.js Frontend</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-stone-100 rounded">
-                <span className="font-mono">localhost:7233</span>
-                <span>Temporal (gRPC)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-red-100 rounded">
-                <span className="font-mono">localhost:8080</span>
-                <span>Redpanda Console</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-purple-100 rounded">
-                <span className="font-mono">localhost:8088</span>
-                <span>Temporal Web UI</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-amber-100 rounded">
-                <span className="font-mono">localhost:9094</span>
-                <span>Kafka (External)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-blue-100 rounded">
-                <span className="font-mono">localhost:5050</span>
-                <span>pgAdmin</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-blue-100 rounded">
-                <span className="font-mono">localhost:5432</span>
-                <span>PostgreSQL</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-teal-100 rounded">
-                <span className="font-mono">localhost:5555</span>
-                <span>Prisma Studio</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-amber-100 rounded">
-                <span className="font-mono">localhost:16686</span>
-                <span>Jaeger UI</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-orange-100 rounded">
-                <span className="font-mono">localhost:6333</span>
-                <span>Qdrant (Vectors)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-green-100 rounded">
-                <span className="font-mono">localhost:19999</span>
-                <span>NetData</span>
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className="bg-amber-100 text-amber-800">Supabase Auth</Badge>
+                </div>
+                <p className="text-sm text-amber-700">
+                  Additional auth available via Supabase at <code className="bg-amber-100 px-1 rounded">localhost:3000</code>
+                </p>
               </div>
             </div>
           </CardContent>

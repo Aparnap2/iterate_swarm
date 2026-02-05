@@ -1,0 +1,111 @@
+{
+  "version": "2.0.0",
+  "name": "IterateSwarm API Mocks",
+  "environments": [
+    {
+      "name": "development",
+      "uuid": "iterateswarm-dev",
+      "lastMigration": 25,
+      "enabled": true,
+      "httpPort": 3005,
+      "httpsPort": 443,
+      "proxyMode": false,
+      "proxyHost": "",
+      "proxyPort": 8080,
+      "proxyAddHeaders": [],
+      "proxyRemoveHeaders": [],
+      "proxyOptions": "",
+      "disabledHeaders": [],
+      "cors": true,
+      "corsOptions": {
+        "enabled": true,
+        "origin": "*",
+        "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "allowedHeaders": ["Content-Type", "Authorization", "X-Request-ID"],
+        "exposedHeaders": ["Content-Type", "Authorization"],
+        "maxAge": 86400,
+        "preflightContinue": false
+      },
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/health",
+          "statusCode": 200,
+          "type": "json",
+          "file": null,
+          "delay": 0,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"{{moment format='YYYY-MM-DDTHH:mm:ss.SSSZ'}}\"\n}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/webhooks/discord",
+          "statusCode": 200,
+          "type": "json",
+          "file": null,
+          "delay": 0,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Discord webhook received\"\n}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/webhooks/slack",
+          "statusCode": 200,
+          "type": "json",
+          "file": null,
+          "delay": 0,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Slack webhook received\"\n}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/issues",
+          "statusCode": 200,
+          "type": "json",
+          "file": null,
+          "delay": 100,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"data\": [\n    {\n      \"id\": \"issue-1\",\n      \"title\": \"Sample Issue 1\",\n      \"status\": \"draft\",\n      \"source\": \"discord\",\n      \"createdAt\": \"{{moment format='YYYY-MM-DDTHH:mm:ss.SSSZ'}}\"\n    },\n    {\n      \"id\": \"issue-2\",\n      \"title\": \"Sample Issue 2\",\n      \"status\": \"published\",\n      \"source\": \"slack\",\n      \"githubUrl\": \"https://github.com/example/repo/issues/123\"\n    }\n  ]\n}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/issues",
+          "statusCode": 201,
+          "type": "json",
+          "file": null,
+          "delay": 200,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"id\": \"issue-{{guid}}\",\n  \"title\": \"{{body 'title'}}\",\n  \"status\": \"draft\",\n  \"source\": \"{{body 'source'}}\",\n  \"createdAt\": \"{{moment format='YYYY-MM-DDTHH:mm:ss.SSSZ'}}\"\n}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/workflow/:id",
+          "statusCode": 200,
+          "type": "json",
+          "file": null,
+          "delay": 100,
+          "disableTemplating": false,
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"id\": \"{{param 'id'}}\",\n  \"status\": \"completed\",\n  \"workflowType\": \"feedback-processing\",\n  \"result\": {\n    \"issuesCreated\": 2,\n    \"feedbackProcessed\": 5\n  }\n}"
+        }
+      ]
+    }
+  ]
+}
